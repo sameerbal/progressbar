@@ -1,0 +1,157 @@
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import java.beans.*;
+import java.util.Random;
+
+public class demo extends JPanel implements ActionListener,
+        PropertyChangeListener, Runnable {
+    private static final long serialVersionUID = 1L;
+    private JProgressBar progressBar;
+    private JButton startButton;
+    private JTextArea taskOutput;
+    private Task task=new Task();;
+
+  
+
+    class Task extends SwingWorker<Void, Void> implements Runnable {
+      
+
+        @Override
+        public Void doInBackground() {
+            Random random = new Random();
+            int progress = 0;
+            
+            setProgress(0);
+            while (progress < 100) {
+                
+                try {
+                    Thread.sleep(random.nextInt(1000));
+                } catch (InterruptedException ignore) {
+                }
+                
+                progress += random.nextInt(10);
+                setProgress(Math.min(progress, 100));
+            }
+            return null;
+        }
+
+       
+        @Override
+        public void done() {
+            Toolkit.getDefaultToolkit().beep();
+            startButton.setEnabled(true);
+            setCursor(null);
+            taskOutput.append("Done!\n");
+        }
+    }
+
+    @Override
+    public void run() {
+
+    }
+
+    public demo() {
+        super(new BorderLayout());
+        
+        startButton = new JButton("Start");
+        startButton.setActionCommand("start");
+        startButton.addActionListener(this);
+
+        progressBar = new JProgressBar(0, 100);
+        progressBar.setValue(0);
+        progressBar.setStringPainted(true);
+
+        taskOutput = new JTextArea(5, 20);
+        taskOutput.setMargin(new Insets(5, 5, 5, 5));
+        taskOutput.setEditable(false);
+
+        JPanel panel = new JPanel();
+        panel.add(startButton);
+        panel.add(progressBar);
+
+        add(panel, BorderLayout.PAGE_START);
+        add(new JScrollPane(taskOutput), BorderLayout.CENTER);
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+    }
+
+    public void actionPerformed(ActionEvent evt) {
+        startButton.setEnabled(false);
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        // Instances of javax.swing.SwingWorker are not reusuable, so
+        // we create new instances as needed.
+        //task = new Task();
+        task.addPropertyChangeListener(this);
+        task.execute();
+    }
+
+ 
+    public void propertyChange(PropertyChangeEvent evt) {
+
+        if ("progress" == evt.getPropertyName()) {
+            int progress = (Integer) evt.getNewValue();
+            progressBar.setValue(progress);
+            taskOutput.append(String.format("Completed %d%% of task.\n",
+                    task.getProgress()));
+        }
+    }
+
+  
+    private void createAndShowGUI() {
+        // Create and set up the window.
+        JFrame frame = new JFrame("ProgressBar");
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+
+        // Create and set up the content pane.
+        JComponent newContentPane = new demo();
+        newContentPane.setOpaque(true); // content panes must be opaque
+        frame.setContentPane(newContentPane);
+        // Display the window.
+        frame.pack();
+        frame.setVisible(true);
+        frame.addWindowListener(new WindowAdapter() {
+
+            @Override
+            public void windowClosing(WindowEvent we) {
+                String ObjButtons[] = { "Yes", "No" };
+
+                try {
+                    synchronized (task) {
+                        System.out.println(task.getState());
+                        task.wait();
+                        System.out.println(task.getState());
+
+                    }
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                int PromptResult = JOptionPane.showOptionDialog(null,
+                        "Are you sure you want to exit?",
+                        "Confirmation...!!!",
+                        JOptionPane.DEFAULT_OPTION,
+                        JOptionPane.WARNING_MESSAGE, null, ObjButtons,
+                        ObjButtons[1]);
+
+                if (PromptResult == 0) {
+                    System.exit(0);
+
+                } else {
+                    synchronized (task) {
+                        task.notify();
+                    }
+                }
+            }
+        });
+    }
+
+    public static void main(String[] args) {
+    
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                new demo().createAndShowGUI();
+            }
+        });
+    }
+}
